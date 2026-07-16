@@ -59,6 +59,9 @@ end
 group :development do
   # Use console on exceptions pages [https://github.com/rails/web-console]
   gem "web-console"
+
+  # View sent emails in the browser instead of delivering them for real [https://github.com/fgrehm/letter_opener_web]
+  gem "letter_opener_web", "~> 3.0"
 end
 
 group :test do

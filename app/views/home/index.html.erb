@@ -1,0 +1,6 @@
+<%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
+<%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+
+<h1>Welcome, <%= Current.user.email_address %></h1>
+
+<%= button_to "Sign out", session_path, method: :delete %>
