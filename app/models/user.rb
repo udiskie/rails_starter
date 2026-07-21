@@ -8,6 +8,7 @@ class User < ApplicationRecord
   normalizes :email_address, with: ->(e) { e.strip.downcase }
 
   validates :email_address, uniqueness: true
+  validates :password, length: { minimum: 8 }, allow_nil: true
 
   generates_token_for :email_confirmation, expires_in: 1.day do
     email_address
