@@ -1,7 +1,11 @@
 #!/bin/bash -e
 
+# Remove a stale PID file left behind by an unclean container shutdown, so
+# Puma doesn't refuse to start on the next boot.
+rm -f /rails/tmp/pids/server.pid
+
 # If running the rails server then create or migrate existing database
-if [ "${@: -2:1}" == "./bin/rails" ] && [ "${@: -1:1}" == "server" ]; then
+if [[ "$*" == *"rails server"* ]]; then
   ./bin/rails db:prepare
 fi
 

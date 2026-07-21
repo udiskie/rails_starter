@@ -10,9 +10,15 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_07_15_202919) do
+ActiveRecord::Schema[8.1].define(version: 2026_07_21_120001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "groups", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.datetime "updated_at", null: false
+  end
 
   create_table "sessions", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -27,10 +33,15 @@ ActiveRecord::Schema[8.1].define(version: 2026_07_15_202919) do
     t.datetime "confirmed_at"
     t.datetime "created_at", null: false
     t.string "email_address", null: false
+    t.bigint "group_id"
     t.string "password_digest", null: false
+    t.string "role", default: "user", null: false
     t.datetime "updated_at", null: false
     t.index ["email_address"], name: "index_users_on_email_address", unique: true
+    t.index ["group_id"], name: "index_users_on_group_id"
+    t.check_constraint "role::text = ANY (ARRAY['admin'::character varying, 'user'::character varying]::text[])", name: "users_role_check"
   end
 
   add_foreign_key "sessions", "users"
+  add_foreign_key "users", "groups"
 end
