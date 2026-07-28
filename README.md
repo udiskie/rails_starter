@@ -77,6 +77,7 @@ This repo is a starter template. To spin up a new project from it:
 2. Run the rename script, passing your new app's name (snake_case recommended, e.g. `shop_manager`):
 
 ```bash
+    chmod +x rename.sh
    ./rename_app.sh my_new_app
 ```
 
