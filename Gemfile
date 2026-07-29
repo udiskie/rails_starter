@@ -40,6 +40,10 @@ gem "thruster", require: false
 # Use Active Storage variants [https://guides.rubyonrails.org/active_storage_overview.html#transforming-images]
 gem "image_processing", "~> 1.2"
 
+gem "design_system_gem",
+  git: "https://github.com/udiskie/design_system_gem.git",
+  branch: "master"
+
 group :development, :test do
   gem "dotenv-rails"
 
