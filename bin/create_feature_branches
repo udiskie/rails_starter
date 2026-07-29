@@ -1,0 +1,52 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# For every queue entry with status "queued": checks out and pulls develop,
+# then creates (or reuses, if it already exists) that issue's feature
+# branch, updates the queue entry to "in_progress", and relabels the GitHub
+# issue "queued" -> "in-progress".
+#
+# Safe to run repeatedly: entries no longer "queued" are skipped, and an
+# existing branch is reused rather than recreated.
+
+require_relative "../lib/issue_pipeline"
+
+IssuePipeline::Git.ensure_clean!
+
+queue = IssuePipeline::Queue.load
+targets = queue.select { |entry| entry["status"] == "queued" }
+
+if targets.empty?
+  puts "No queued issues."
+  exit 0
+end
+
+targets.each do |entry|
+  number = entry["number"]
+  branch = entry["branch"]
+
+  IssuePipeline::Git.checkout(IssuePipeline::INTEGRATION_BRANCH)
+  IssuePipeline::Git.pull(IssuePipeline::INTEGRATION_BRANCH)
+
+  if IssuePipeline::Git.local_branch_exists?(branch)
+    puts "##{number}: reusing existing local branch #{branch}"
+    IssuePipeline::Git.checkout(branch)
+  elsif IssuePipeline::Git.remote_branch_exists?(branch)
+    puts "##{number}: checking out existing remote branch #{branch}"
+    IssuePipeline::Git.checkout(branch)
+  else
+    puts "##{number}: creating branch #{branch} from #{IssuePipeline::INTEGRATION_BRANCH}"
+    IssuePipeline::Git.create_branch(branch, from: IssuePipeline::INTEGRATION_BRANCH)
+  end
+
+  IssuePipeline::Queue.update(number, "status" => "in_progress", "branch" => branch)
+  IssuePipeline::GitHub.relabel(
+    number,
+    from: IssuePipeline::LABELS[:queued],
+    to: IssuePipeline::LABELS[:in_progress]
+  )
+
+  puts "##{number}: status -> in_progress"
+end
+
+IssuePipeline::Git.checkout(IssuePipeline::INTEGRATION_BRANCH)
