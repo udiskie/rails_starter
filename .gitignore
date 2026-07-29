@@ -68,3 +68,9 @@ docker-compose.override.yml
 # RSpec / test reports
 /spec/reports/
 /spec/examples.txt
+
+# Issue-to-feature-branch pipeline (see README#issue-pipeline).
+# These MUST never be committed to develop or main — see .githooks/pre-commit
+# and .github/workflows/guard-pipeline-files.yml for enforcement.
+/prompts/
+/queue/

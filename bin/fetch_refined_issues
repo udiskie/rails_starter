@@ -1,0 +1,68 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Fetches every open GitHub issue labeled "refined", writes it to
+# prompts/issue-<number>.md as an agent-ready task spec, adds it to
+# queue/queue.json with status "queued", and relabels the issue
+# "refined" -> "queued" on GitHub.
+#
+# Safe to run repeatedly: issues already present in the queue (matched by
+# issue number) are left untouched.
+
+require "fileutils"
+require_relative "../lib/issue_pipeline"
+
+def write_prompt_file(issue)
+  FileUtils.mkdir_p(IssuePipeline::PROMPTS_DIR)
+  path = File.join(IssuePipeline::PROMPTS_DIR, "issue-#{issue['number']}.md")
+
+  File.write(path, <<~MARKDOWN)
+    # ##{issue['number']}: #{issue['title']}
+
+    Source: #{issue['url']}
+
+    #{issue['body']}
+  MARKDOWN
+
+  path
+end
+
+IssuePipeline::LABELS.each_value { |label| IssuePipeline::GitHub.ensure_label(label) }
+
+candidates = IssuePipeline::GitHub.open_issues_with_label(IssuePipeline::LABELS[:refined])
+queue = IssuePipeline::Queue.load
+queued_numbers = queue.map { |entry| entry["number"] }
+
+added = []
+skipped = []
+
+candidates.each do |candidate|
+  number = candidate["number"]
+
+  if queued_numbers.include?(number)
+    skipped << number
+    next
+  end
+
+  issue = IssuePipeline::GitHub.issue(number)
+  prompt_path = write_prompt_file(issue)
+
+  branch = IssuePipeline::Slug.branch_name(number, issue["title"])
+  IssuePipeline::Queue.add(
+    {
+      "number" => number,
+      "title" => issue["title"],
+      "branch" => branch,
+      "status" => "queued"
+    }
+  )
+
+  IssuePipeline::GitHub.relabel(number, from: IssuePipeline::LABELS[:refined], to: IssuePipeline::LABELS[:queued])
+
+  added << number
+  puts "Queued ##{number}: #{issue['title']} -> #{prompt_path}"
+end
+
+puts "\nAdded #{added.size} issue(s): #{added.join(', ')}" unless added.empty?
+puts "Skipped #{skipped.size} already-queued issue(s): #{skipped.join(', ')}" unless skipped.empty?
+puts "No open issues labeled '#{IssuePipeline::LABELS[:refined]}'." if candidates.empty?

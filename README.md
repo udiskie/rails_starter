@@ -100,3 +100,65 @@ This will:
    - `config/credentials.yml.enc` / `config/master.key` — left untouched; rotate/regenerate credentials for the new project as needed
 
 Once renamed, this project is fully independent of the starter — future changes here won't affect the starter template, and updates to the starter won't automatically flow into this project.
+
+## Issue-to-feature-branch pipeline
+
+Turns GitHub issues labeled `refined` into feature branches PR'd back into `develop`,
+without ever committing the per-issue prompt files or the work queue to history.
+
+Requires the `gh` CLI, authenticated (`gh auth status`) with access to this repo. Labels
+`refined`, `queued`, `in-progress`, `in-review`, and `blocked` are created automatically
+on first run if missing.
+
+0. **Mark an issue as ready** — once an issue has a user story and acceptance criteria
+   written up, label it `refined` (via the GitHub UI, or `gh issue edit <number>
+   --add-label refined`). This is what makes it eligible for step 1.
+
+1. **Fetch + enqueue**
+
+   ```bash
+   bin/fetch_refined_issues
+   ```
+
+   Pulls every open issue labeled `refined`, writes it to `prompts/issue-<number>.md`
+   (the task spec for the agent that implements it), adds it to `queue/queue.json` with
+   status `queued`, and relabels the issue `refined` -> `queued`. Safe to re-run — issues
+   already in the queue (matched by number) are skipped.
+
+2. **Cut branches**
+
+   ```bash
+   bin/create_feature_branches
+   ```
+
+   For every `queued` entry: checks out and pulls `develop`, creates
+   `feature/issue-<number>-<slug>` from it (or reuses it if it already exists), sets
+   status to `in_progress`, and relabels the issue `queued` -> `in-progress`.
+
+3. **Implement** — on each feature branch, hand `prompts/issue-<number>.md` to an agent
+   as the task spec. Implement the acceptance criteria only; write/update tests; commit
+   with a message referencing the issue (`#42: ...`). If the story is ambiguous, stop,
+   set that queue entry's `status` to `blocked`, and leave a comment on the issue instead
+   of guessing.
+
+4. **Open the PR**
+
+   ```bash
+   bin/open_feature_pr 42 --summary "What was implemented, against which acceptance criteria"
+   ```
+
+   Pushes the branch, opens a PR into `develop` via `gh pr create`, sets status to
+   `in_review`, and relabels the issue `in-progress` -> `in-review`. Never merges — that's
+   for a human reviewer.
+
+### Guardrails
+
+`prompts/` and `queue/` are gitignored and must never be committed to `develop` or
+`main`. Two independent layers enforce this:
+
+- A pre-commit hook (`.githooks/pre-commit`, installed via `git config core.hooksPath
+.githooks` — done automatically by `bin/setup`) blocks any commit touching those paths,
+  even if force-added with `git add -f`.
+- `.github/workflows/guard-pipeline-files.yml` is the hard backstop: on every push or PR
+  targeting `develop` or `main`, it diffs the change for `prompts/issue-*.md` or
+  `queue/queue.json` and fails the build if either is present.
