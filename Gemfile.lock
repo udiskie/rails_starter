@@ -1,3 +1,15 @@
+GIT
+  remote: https://github.com/udiskie/design_system_gem.git
+  revision: 8a1ef534534c5ac84cc740d85ecda5ad53d5d823
+  branch: master
+  specs:
+    design_system_gem (0.1.0)
+      importmap-rails
+      lucide-rails
+      railties (>= 7.0)
+      stimulus-rails
+      turbo-rails
+
 GEM
   remote: https://rubygems.org/
   specs:
@@ -181,6 +193,8 @@ GEM
     loofah (2.25.1)
       crass (~> 1.0.2)
       nokogiri (>= 1.12.0)
+    lucide-rails (0.7.4)
+      railties (>= 4.1.0)
     mail (2.9.1)
       logger
       mini_mime (>= 0.1.1)
@@ -420,6 +434,7 @@ DEPENDENCIES
   bundler-audit
   capybara
   debug
+  design_system_gem!
   dotenv-rails
   image_processing (~> 1.2)
   importmap-rails
