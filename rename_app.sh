@@ -34,13 +34,21 @@ fi
 
 # Derive CamelCase version (rails_starter -> RailsStarter, my_new_app -> MyNewApp)
 NEW_NAME_CAMEL=$(echo "$NEW_NAME_SNAKE" | awk -F'_' '{for(i=1;i<=NF;i++) printf "%s", toupper(substr($i,1,1)) substr($i,2)}')
+# Derive kebab-case (rails_starter -> rails-starter) - common in Kamal/Docker configs
+NEW_NAME_KEBAB=$(echo "$NEW_NAME_SNAKE" | tr '_' '-')
+# Derive SCREAMING_SNAKE_CASE (rails_starter -> RAILS_STARTER) - common in env vars
+NEW_NAME_SCREAMING=$(echo "$NEW_NAME_SNAKE" | tr '[:lower:]' '[:upper:]')
 
 OLD_NAME_CAMEL=$(echo "$OLD_NAME" | awk -F'_' '{for(i=1;i<=NF;i++) printf "%s", toupper(substr($i,1,1)) substr($i,2)}')
+OLD_NAME_KEBAB=$(echo "$OLD_NAME" | tr '_' '-')
+OLD_NAME_SCREAMING=$(echo "$OLD_NAME" | tr '[:lower:]' '[:upper:]')
 
 echo "=========================================="
 echo " Renaming project"
-echo "   snake_case: $OLD_NAME  ->  $NEW_NAME_SNAKE"
-echo "   CamelCase:  $OLD_NAME_CAMEL  ->  $NEW_NAME_CAMEL"
+echo "   snake_case:      $OLD_NAME  ->  $NEW_NAME_SNAKE"
+echo "   CamelCase:       $OLD_NAME_CAMEL  ->  $NEW_NAME_CAMEL"
+echo "   kebab-case:      $OLD_NAME_KEBAB  ->  $NEW_NAME_KEBAB"
+echo "   SCREAMING_SNAKE: $OLD_NAME_SCREAMING  ->  $NEW_NAME_SCREAMING"
 echo "=========================================="
 echo
 
@@ -66,8 +74,10 @@ for dir in "${EXCLUDE_DIRS[@]}"; do
   EXCLUDE_ARGS+=(--exclude-dir="$dir")
 done
 
-echo "Scanning for references to '$OLD_NAME' / '$OLD_NAME_CAMEL'..."
-MATCHING_FILES=$(grep -rlI "${EXCLUDE_ARGS[@]}" -e "$OLD_NAME" -e "$OLD_NAME_CAMEL" . 2>/dev/null || true)
+echo "Scanning for references to '$OLD_NAME' / '$OLD_NAME_CAMEL' / '$OLD_NAME_KEBAB' / '$OLD_NAME_SCREAMING'..."
+MATCHING_FILES=$(grep -rlI "${EXCLUDE_ARGS[@]}" \
+  -e "$OLD_NAME" -e "$OLD_NAME_CAMEL" -e "$OLD_NAME_KEBAB" -e "$OLD_NAME_SCREAMING" \
+  . 2>/dev/null || true)
 
 if [ -z "$MATCHING_FILES" ]; then
   echo "No matches found. Nothing to rename in file contents."
@@ -89,6 +99,8 @@ if [ -n "$MATCHING_FILES" ]; then
   echo "$MATCHING_FILES" | while IFS= read -r file; do
     sed "${SED_INPLACE[@]}" \
       -e "s/${OLD_NAME_CAMEL}/${NEW_NAME_CAMEL}/g" \
+      -e "s/${OLD_NAME_KEBAB}/${NEW_NAME_KEBAB}/g" \
+      -e "s/${OLD_NAME_SCREAMING}/${NEW_NAME_SCREAMING}/g" \
       -e "s/${OLD_NAME}/${NEW_NAME_SNAKE}/g" \
       "$file"
   done
@@ -114,16 +126,33 @@ if [ -d ".git" ]; then
     git commit -q -m "Initial commit: renamed from ${OLD_NAME} to ${NEW_NAME_SNAKE}"
     echo "Git history reset. Fresh repo created with one initial commit."
 
-    read -r -p "Enter the git remote URL for '${NEW_NAME_SNAKE}' (leave blank to skip): " REMOTE_URL
-    if [ -n "$REMOTE_URL" ]; then
-      git remote add "$NEW_NAME_SNAKE" "$REMOTE_URL"
-      CURRENT_BRANCH=$(git branch --show-current)
-      git push -u "$NEW_NAME_SNAKE" "$CURRENT_BRANCH"
-      echo "Remote '${NEW_NAME_SNAKE}' added and pushed to ${REMOTE_URL}"
-    else
-      echo "Skipped remote setup. You can add one later with:"
-      echo "  git remote add ${NEW_NAME_SNAKE} <your-repo-url>"
-      echo "  git push -u ${NEW_NAME_SNAKE} $(git branch --show-current)"
+    REMOTE_CREATED=false
+
+    # Prefer gh CLI if available - it can create the remote repo, not just link to one
+    if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
+      read -r -p "Create a new private GitHub repo '${NEW_NAME_SNAKE}' via gh and push? [y/N] " USE_GH
+      if [[ "$USE_GH" =~ ^[Yy]$ ]]; then
+        gh repo create "${NEW_NAME_SNAKE}" --private --source=. --remote="${NEW_NAME_SNAKE}" --push
+        echo "Repo created on GitHub and pushed via remote '${NEW_NAME_SNAKE}'."
+        REMOTE_CREATED=true
+      fi
+    fi
+
+    # Fall back to a manually-provided URL (repo must already exist server-side)
+    if [ "$REMOTE_CREATED" = false ]; then
+      read -r -p "Enter an existing git remote URL for '${NEW_NAME_SNAKE}' (leave blank to skip): " REMOTE_URL
+      if [ -n "$REMOTE_URL" ]; then
+        git remote add "$NEW_NAME_SNAKE" "$REMOTE_URL"
+        CURRENT_BRANCH=$(git branch --show-current)
+        git push -u "$NEW_NAME_SNAKE" "$CURRENT_BRANCH"
+        echo "Remote '${NEW_NAME_SNAKE}' added and pushed to ${REMOTE_URL}"
+      else
+        echo "Skipped remote setup. You can add one later with:"
+        echo "  gh repo create ${NEW_NAME_SNAKE} --private --source=. --remote=${NEW_NAME_SNAKE} --push"
+        echo "  # or, if the repo already exists:"
+        echo "  git remote add ${NEW_NAME_SNAKE} <your-repo-url>"
+        echo "  git push -u ${NEW_NAME_SNAKE} $(git branch --show-current)"
+      fi
     fi
   else
     echo "Skipped git history reset. Remember to update your remote:"
@@ -142,8 +171,14 @@ Next steps (do these manually):
   1. bundle install
   2. bin/rails db:drop db:create db:migrate   # old-named dev/test DBs won't auto-drop
   3. Review config/deploy.yml (Kamal) for registry/image names if you use a container registry
-  4. Review config/credentials.yml.enc / master.key — these were NOT touched
-  5. Search for any remaining stray references just in case:
-       grep -rli "${OLD_NAME}" --exclude-dir=.git .
+  4. config/credentials.yml.enc is encrypted and was intentionally NOT touched -
+     sed cannot safely edit encrypted content. If '${OLD_NAME}' appears inside it
+     (e.g. a default mailer address), check and fix it manually:
+       bin/rails credentials:show | grep -i "${OLD_NAME}"
+       bin/rails credentials:edit    # opens decrypted content in \$EDITOR
+     config/master.key was also skipped - it's a secret, gitignored, and has
+     nothing to do with the app's name.
+  5. Search for any remaining stray references just in case (covers all casings):
+       grep -rliE "${OLD_NAME}|${OLD_NAME_CAMEL}|${OLD_NAME_KEBAB}|${OLD_NAME_SCREAMING}" --exclude-dir=.git .
 
 EOF
