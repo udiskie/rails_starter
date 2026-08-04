@@ -46,7 +46,7 @@ module IssuePipeline
     end
 
     def pull(branch)
-      run("pull", "origin", assert_valid_branch!(branch))
+      run("pull", remote_name, assert_valid_branch!(branch))
     end
 
     def local_branch_exists?(branch)
@@ -55,7 +55,7 @@ module IssuePipeline
     end
 
     def remote_branch_exists?(branch)
-      run("ls-remote", "--heads", "origin", assert_valid_branch!(branch)).strip != ""
+      run("ls-remote", "--heads", remote_name, assert_valid_branch!(branch)).strip != ""
     end
 
     def create_branch(branch, from:)
@@ -63,7 +63,26 @@ module IssuePipeline
     end
 
     def push(branch)
-      run("push", "-u", "origin", assert_valid_branch!(branch))
+      run("push", "-u", remote_name, assert_valid_branch!(branch))
+    end
+
+    # rename_app.sh names the remote after the app (not "origin") when it
+    # offers to create a GitHub repo, so we can't hardcode either name --
+    # resolve it dynamically and cache the result for the process lifetime.
+    def remote_name
+      @remote_name ||= begin
+        remotes = run("remote").split("\n").map(&:strip).reject(&:empty?)
+
+        if remotes.include?("origin")
+          "origin"
+        elsif remotes.size == 1
+          remotes.first
+        else
+          raise Error,
+                "cannot determine git remote: found #{remotes.size} remote(s) (#{remotes.join(', ')}) " \
+                "and none is named 'origin' -- rename the intended remote to 'origin' or remove the others"
+        end
+      end
     end
   end
 end
