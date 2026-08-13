@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+# Pushes a queued-in-progress issue's feature branch and opens a PR into
+# develop, then marks the queue entry "in_review" and relabels the GitHub
+# issue "in-progress" -> "in-review". Never merges -- that's left for human
+# review.
+#
+# The actual development work (implementing the issue's acceptance
+# criteria, per prompts/issue-<number>.md) happens on the branch before
+# this script runs; this script only handles the push/PR/handoff step.
+#
+# Usage:
+#   bin/open_feature_pr ISSUE_NUMBER --summary "What was implemented, against which acceptance criteria"
+#   bin/open_feature_pr ISSUE_NUMBER --summary-file path/to/body.md
+#   echo "..." | bin/open_feature_pr ISSUE_NUMBER
+
+require "optparse"
+require_relative "../lib/issue_pipeline"
+
+options = {}
+parser = OptionParser.new do |opts|
+  opts.banner = "Usage: bin/open_feature_pr ISSUE_NUMBER [--summary TEXT | --summary-file PATH]"
+  opts.on("--summary TEXT", "PR body summarizing what was implemented against the acceptance criteria") do |v|
+    options[:summary] = v
+  end
+  opts.on("--summary-file PATH", "Read the PR body from a file") { |v| options[:summary_file] = v }
+end
+parser.parse!
+
+number = ARGV[0]&.to_i
+if number.nil? || number <= 0
+  warn parser.banner
+  exit 1
+end
+
+entry = IssuePipeline::Queue.find(number)
+raise "no queue entry for issue ##{number} -- run bin/create_feature_branches first" unless entry
+unless entry["status"] == "in_progress"
+  raise "issue ##{number} has status '#{entry['status']}', expected 'in_progress'"
+end
+
+summary =
+  if options[:summary]
+    options[:summary]
+  elsif options[:summary_file]
+    File.read(options[:summary_file])
+  elsif !$stdin.tty?
+    $stdin.read
+  end
+
+raise "no PR summary given (--summary, --summary-file, or piped stdin)" if summary.to_s.strip.empty?
+
+branch = entry["branch"]
+
+IssuePipeline::Git.ensure_clean!
+IssuePipeline::Git.checkout(branch)
+
+ahead = IssuePipeline::Git.run("rev-list", "--count", "#{IssuePipeline::INTEGRATION_BRANCH}..#{branch}").strip.to_i
+if ahead.zero?
+  raise "#{branch} has no commits ahead of #{IssuePipeline::INTEGRATION_BRANCH} -- nothing to open a PR for"
+end
+
+IssuePipeline::Git.push(branch)
+
+pr_url = IssuePipeline::GitHub.create_pr(
+  base: IssuePipeline::INTEGRATION_BRANCH,
+  head: branch,
+  title: "##{number}: #{entry['title']}",
+  body: summary
+).strip
+
+IssuePipeline::Queue.update(number, "status" => "in_review")
+IssuePipeline::GitHub.relabel(
+  number,
+  from: IssuePipeline::LABELS[:in_progress],
+  to: IssuePipeline::LABELS[:in_review]
+)
+
+puts "Opened PR for ##{number}: #{pr_url}"
+puts "Status -> in_review"

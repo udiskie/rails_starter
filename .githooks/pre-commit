@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Refuses to commit issue-pipeline files (prompts/issue-*.md, queue/queue.json)
+# even if they were force-added with `git add -f`. These are gitignored and
+# must never land in history -- see README#issue-pipeline.
+set -euo pipefail
+
+blocked=$(git diff --cached --name-only --diff-filter=ACM | grep -E '^(prompts/issue-.*\.md|queue/queue\.json)$' || true)
+
+if [ -n "$blocked" ]; then
+  echo "error: refusing to commit issue-pipeline files (must stay untracked):" >&2
+  echo "$blocked" >&2
+  echo "" >&2
+  echo "Unstage with: git restore --staged <path>" >&2
+  exit 1
+fi

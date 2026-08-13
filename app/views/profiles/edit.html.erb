@@ -1,0 +1,28 @@
+<%= render "ui/base_layout",
+  title: "Edit profile",
+  icon: "user-pen",
+  active_controller: "profile",
+  edit_profile_url: edit_profile_path,
+  logout_url: session_path,
+  logout_method: :delete,
+  user_name: Current.user.name,
+  user_email: Current.user.email_address,
+  sidebar_items: [
+    { label: "Dashboard", icon: "house", href: dashboard_path, controller: "dashboard" }
+  ] do %>
+  <% if @user.errors.any? %>
+    <div style="color:red">
+      <ul>
+        <% @user.errors.each do |error| %>
+          <li><%= error.full_message %></li>
+        <% end %>
+      </ul>
+    </div>
+  <% end %>
+
+  <%= form_with url: profile_path, method: :patch, class: "auth-form" do |form| %>
+    <%= form.text_field :name, required: true, value: @user.name %>
+    <%= form.email_field :email_address, required: true, autocomplete: "username", value: @user.email_address %>
+    <button variant="primary" size="md" type="submit">Save changes</button>
+  <% end %>
+<% end %>

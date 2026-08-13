@@ -1,0 +1,13 @@
+<%# locals: () %>
+<nav class="landing-nav">
+  <%= render "ui/heading", text: "Rails Starter", level: 2 %>
+  <div class="landing-nav__actions">
+    <% if authenticated? %>
+      <%= button_to "Sign out", session_path, method: :delete, variant: "secondary" %>
+      <%= link_to "Dashboard", dashboard_path, class: "landing-cta" %>
+    <% else %>
+      <%= render "ui/link", text: "Login", href: new_session_path %>
+      <%= link_to "Sign up", new_registration_path, class: "landing-cta" %>
+    <% end %>
+  </div>
+</nav>

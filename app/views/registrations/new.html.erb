@@ -1,0 +1,27 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <%= render "ui/heading", text: "Sign up", level: 1 %>
+
+    <% if @user.errors.any? %>
+      <div style="color:red">
+        <ul>
+          <% @user.errors.each do |error| %>
+            <li><%= error.full_message %></li>
+          <% end %>
+        </ul>
+      </div>
+    <% end %>
+
+    <%= form_with url: registration_path, class: "auth-form" do |form| %>
+      <%= form.text_field :name, required: true, autofocus: true, autocomplete: "name", placeholder: "Enter your name", value: @user.name %>
+      <%= form.email_field :email_address, required: true, autocomplete: "username", placeholder: "Enter your email address", value: @user.email_address %>
+      <%= form.password_field :password, required: true, autocomplete: "new-password", placeholder: "Enter a password", maxlength: 72 %>
+      <%= form.password_field :password_confirmation, required: true, autocomplete: "new-password", placeholder: "Repeat your password", maxlength: 72 %>
+      <button variant="primary" size="md" type="submit">Sign up</button>
+    <% end %>
+
+    <div class="auth-links">
+      <%= link_to "Already have an account? Sign in", new_session_path %>
+    </div>
+  </div>
+</div>

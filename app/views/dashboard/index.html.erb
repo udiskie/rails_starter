@@ -1,0 +1,16 @@
+<%= render "ui/base_layout",
+  title: "Dashboard",
+  icon: "house",
+  active_controller: "dashboard",
+  edit_profile_url: edit_profile_path,
+  logout_url: session_path,
+  logout_method: :delete,
+  user_name: Current.user.name,
+  user_email: Current.user.email_address,
+  sidebar_items: [
+    { label: "Dashboard", icon: "house", href: dashboard_path, controller: "dashboard" }
+    # add more nav items here as real features/routes exist -- don't invent placeholder
+    # routes for features that don't exist yet
+  ] do %>
+  <%= render "ui/paragraph", text: "Placeholder dashboard content.", size: "lg" %>
+<% end %>

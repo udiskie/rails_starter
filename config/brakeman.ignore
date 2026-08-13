@@ -1,0 +1,13 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Command Injection",
+      "fingerprint": "c23668e190bd96fc2db09b9a757bd41c98fb8b1345e5bc90c9894eadf9fa7f9e",
+      "note": "branch is validated against IssuePipeline::Git::VALID_BRANCH (^[A-Za-z0-9][A-Za-z0-9._/-]*$) before this call, and Open3.capture3 exec's git with an argv array, not a shell -- no shell metacharacters are ever interpreted. See lib/issue_pipeline/git.rb.",
+      "file": "lib/issue_pipeline/git.rb",
+      "line": 53
+    }
+  ],
+  "updated": "2026-07-29 18:57:16 -0400",
+  "brakeman_version": "8.0.5"
+}

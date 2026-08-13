@@ -1,0 +1,20 @@
+<div class="auth-page">
+  <div class="auth-card">
+    <%= render "ui/heading", text: "Sign in", level: 1 %>
+
+    <%= tag.div(flash[:alert], style: "color:red") if flash[:alert] %>
+    <%= tag.div(flash[:notice], style: "color:green") if flash[:notice] %>
+
+    <%= form_with url: session_path, class: "auth-form" do |form| %>
+      <%= form.email_field :email_address, required: true, autofocus: true, autocomplete: "username", placeholder: "Enter your email address", value: params[:email_address] %>
+      <%= form.password_field :password, required: true, autocomplete: "current-password", placeholder: "Enter your password", maxlength: 72 %>
+      <button variant="primary" size="md" type="submit">Sign in</button>
+    <% end %>
+
+    <div class="auth-links">
+      <%= link_to "Forgot password?", new_password_path %>
+      <%= link_to "Sign up", new_registration_path %>
+      <%= link_to "Resend confirmation instructions", new_confirmation_path %>
+    </div>
+  </div>
+</div>

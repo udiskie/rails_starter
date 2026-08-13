@@ -1,0 +1,33 @@
+<%= render "application/header" %>
+
+<section class="landing-hero">
+  <%= render "ui/heading", text: "Ship your SaaS faster", level: 1 %>
+  <%= render "ui/paragraph", text: "A batteries-included Rails starter with authentication, a design system, and everything you need to launch.", size: "lg" %>
+  <%= link_to "Get started", new_registration_path, class: "landing-cta" %>
+</section>
+
+<section class="landing-features">
+  <%= render "ui/card" do %>
+    <%= render "ui/heading", text: "Authentication built in", level: 3 %>
+    <%= render "ui/paragraph", text: "Sign up, sign in, password resets, and email confirmation all work out of the box." %>
+  <% end %>
+
+  <%= render "ui/card" do %>
+    <%= render "ui/heading", text: "Consistent design system", level: 3 %>
+    <%= render "ui/paragraph", text: "Every screen shares the same components, so your product looks cohesive from day one." %>
+  <% end %>
+
+  <%= render "ui/card" do %>
+    <%= render "ui/heading", text: "Background jobs, cache, and cable", level: 3 %>
+    <%= render "ui/paragraph", text: "Solid Queue, Solid Cache, and Solid Cable run on Postgres -- no extra infrastructure to manage." %>
+  <% end %>
+
+  <%= render "ui/card" do %>
+    <%= render "ui/heading", text: "Deploy anywhere", level: 3 %>
+    <%= render "ui/paragraph", text: "Kamal ships your app as a Docker container to any host you choose." %>
+  <% end %>
+</section>
+
+<footer class="landing-footer">
+  <%= render "ui/paragraph", text: "Rails Starter -- built with Rails 8." %>
+</footer>

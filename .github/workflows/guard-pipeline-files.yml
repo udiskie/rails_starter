@@ -1,0 +1,49 @@
+name: Guard pipeline files
+
+# Hard backstop for the issue-to-feature-branch pipeline (see README#issue-pipeline).
+# prompts/issue-*.md and queue/queue.json are gitignored and blocked by a local
+# pre-commit hook, but this catches them before they can land on develop or
+# main even if a feature branch carried one in (e.g. via `git add -f`).
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Fail if prompts/ or queue/queue.json are part of this change
+        run: |
+          set -euo pipefail
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            range="${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}"
+          else
+            before="${{ github.event.before }}"
+            if [ -z "$before" ] || [ "$before" = "0000000000000000000000000000000000000000" ]; then
+              # First push of a new branch: nothing to diff against, so check
+              # the full tree at HEAD instead.
+              matches=$(git ls-tree -r --name-only HEAD -- 'prompts' 'queue/queue.json' | grep -E '^(prompts/issue-.*\.md|queue/queue\.json)$' || true)
+              if [ -n "$matches" ]; then
+                echo "::error::Pipeline-only files found on ${{ github.ref_name }}:"
+                echo "$matches"
+                exit 1
+              fi
+              exit 0
+            fi
+            range="$before...${{ github.sha }}"
+          fi
+
+          matches=$(git diff --name-only "$range" -- 'prompts/issue-*.md' 'queue/queue.json' || true)
+          if [ -n "$matches" ]; then
+            echo "::error::Commit range $range introduces files that must never land on develop or main:"
+            echo "$matches"
+            exit 1
+          fi
